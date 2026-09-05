@@ -1,0 +1,9 @@
+/wget
+wget-log
+
+# artifacts commonly produced while manually testing the CLI
+*.zip
+*.jpg
+*.jpeg
+*.gif
+*.tar.gz
