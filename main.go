@@ -1,6 +1,7 @@
 package main
 
 import (
+	"bufio"
 	"flag"
 	"fmt"
 	"net/url"
@@ -9,6 +10,7 @@ import (
 	"strings"
 
 	"wget/internal/background"
+	"wget/internal/batch"
 	"wget/internal/downloader"
 )
 
@@ -18,12 +20,14 @@ func main() {
 		outputDir string
 		rateLimit string
 		bg        bool
+		inputFile string
 	)
 
 	flag.StringVar(&output, "O", "", "save the file under a different name")
 	flag.StringVar(&outputDir, "P", ".", "directory prefix where the file will be saved")
 	flag.StringVar(&rateLimit, "rate-limit", "", "limit download speed, e.g. 200k or 2M")
 	flag.BoolVar(&bg, "B", false, "download in the background, output redirected to wget-log")
+	flag.StringVar(&inputFile, "i", "", "file listing multiple URLs to download concurrently")
 	flag.Parse()
 
 	if bg {
@@ -34,6 +38,22 @@ func main() {
 		return
 	}
 
+	limit, err := downloader.ParseRate(rateLimit)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "wget: "+err.Error())
+		os.Exit(1)
+	}
+
+	if inputFile != "" {
+		urls, err := readLines(inputFile)
+		if err != nil {
+			fmt.Fprintln(os.Stderr, "wget: "+err.Error())
+			os.Exit(1)
+		}
+		batch.DownloadAll(urls, outputDir, limit)
+		return
+	}
+
 	args := flag.Args()
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "wget: missing URL")
@@ -41,12 +61,6 @@ func main() {
 		os.Exit(1)
 	}
 	rawURL := args[0]
-
-	limit, err := downloader.ParseRate(rateLimit)
-	if err != nil {
-		fmt.Fprintln(os.Stderr, "wget: "+err.Error())
-		os.Exit(1)
-	}
 
 	name := output
 	if name == "" {
@@ -65,6 +79,24 @@ func main() {
 		fmt.Fprintln(os.Stderr, "wget: "+err.Error())
 		os.Exit(1)
 	}
+}
+
+func readLines(path string) ([]string, error) {
+	f, err := os.Open(path)
+	if err != nil {
+		return nil, err
+	}
+	defer f.Close()
+
+	var lines []string
+	scanner := bufio.NewScanner(f)
+	for scanner.Scan() {
+		line := strings.TrimSpace(scanner.Text())
+		if line != "" {
+			lines = append(lines, line)
+		}
+	}
+	return lines, scanner.Err()
 }
 
 func filenameFromURL(rawURL string) string {
