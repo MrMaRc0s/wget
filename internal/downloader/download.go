@@ -18,6 +18,7 @@ const timeFormat = "2006-01-02 15:04:05"
 type Options struct {
 	URL          string
 	Destination  string
+	RateLimit    int64 // bytes per second, 0 means unlimited
 	ShowProgress bool
 	Out          io.Writer
 }
@@ -66,15 +67,20 @@ func Download(opts Options) error {
 	}
 	defer file.Close()
 
+	var body io.Reader = resp.Body
+	if opts.RateLimit > 0 {
+		body = newRateLimitedReader(body, opts.RateLimit)
+	}
+
 	if opts.ShowProgress {
 		bar := newProgressBar(size, out)
-		if _, err := io.Copy(file, io.TeeReader(resp.Body, bar)); err != nil {
+		if _, err := io.Copy(file, io.TeeReader(body, bar)); err != nil {
 			return fmt.Errorf("download failed: %w", err)
 		}
 		bar.finish()
 		fmt.Fprintln(out)
 	} else {
-		if _, err := io.Copy(file, resp.Body); err != nil {
+		if _, err := io.Copy(file, body); err != nil {
 			return fmt.Errorf("download failed: %w", err)
 		}
 	}

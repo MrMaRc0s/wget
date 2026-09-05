@@ -15,19 +15,27 @@ func main() {
 	var (
 		output    string
 		outputDir string
+		rateLimit string
 	)
 
 	flag.StringVar(&output, "O", "", "save the file under a different name")
 	flag.StringVar(&outputDir, "P", ".", "directory prefix where the file will be saved")
+	flag.StringVar(&rateLimit, "rate-limit", "", "limit download speed, e.g. 200k or 2M")
 	flag.Parse()
 
 	args := flag.Args()
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "wget: missing URL")
-		fmt.Fprintln(os.Stderr, "usage: wget [-O name] [-P path] <url>")
+		fmt.Fprintln(os.Stderr, "usage: wget [-O name] [-P path] [--rate-limit rate] <url>")
 		os.Exit(1)
 	}
 	rawURL := args[0]
+
+	limit, err := downloader.ParseRate(rateLimit)
+	if err != nil {
+		fmt.Fprintln(os.Stderr, "wget: "+err.Error())
+		os.Exit(1)
+	}
 
 	name := output
 	if name == "" {
@@ -35,9 +43,10 @@ func main() {
 	}
 	dest := joinDestination(outputDir, name)
 
-	err := downloader.Download(downloader.Options{
+	err = downloader.Download(downloader.Options{
 		URL:          rawURL,
 		Destination:  dest,
+		RateLimit:    limit,
 		ShowProgress: true,
 		Out:          os.Stdout,
 	})
