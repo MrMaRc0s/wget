@@ -87,7 +87,9 @@ func main() {
 
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "wget: missing URL")
-		fmt.Fprintln(os.Stderr, "usage: wget [-O name] [-P path] [--rate-limit rate] <url>")
+		fmt.Fprintln(os.Stderr, "usage: wget [-O name] [-P path] [-B] [--rate-limit rate] <url>")
+		fmt.Fprintln(os.Stderr, "       wget -i=<file>")
+		fmt.Fprintln(os.Stderr, "       wget --mirror [-R exts] [-X paths] [--convert-links] <url>")
 		os.Exit(1)
 	}
 	rawURL := args[0]
