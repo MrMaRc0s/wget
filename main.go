@@ -12,15 +12,20 @@ import (
 	"wget/internal/background"
 	"wget/internal/batch"
 	"wget/internal/downloader"
+	"wget/internal/mirror"
 )
 
 func main() {
 	var (
-		output    string
-		outputDir string
-		rateLimit string
-		bg        bool
-		inputFile string
+		output       string
+		outputDir    string
+		rateLimit    string
+		bg           bool
+		inputFile    string
+		mirrorSite   bool
+		reject       string
+		exclude      string
+		convertLinks bool
 	)
 
 	flag.StringVar(&output, "O", "", "save the file under a different name")
@@ -28,6 +33,12 @@ func main() {
 	flag.StringVar(&rateLimit, "rate-limit", "", "limit download speed, e.g. 200k or 2M")
 	flag.BoolVar(&bg, "B", false, "download in the background, output redirected to wget-log")
 	flag.StringVar(&inputFile, "i", "", "file listing multiple URLs to download concurrently")
+	flag.BoolVar(&mirrorSite, "mirror", false, "mirror an entire website")
+	flag.StringVar(&reject, "R", "", "comma separated file suffixes to skip, e.g. jpg,gif")
+	flag.StringVar(&reject, "reject", "", "comma separated file suffixes to skip, e.g. jpg,gif")
+	flag.StringVar(&exclude, "X", "", "comma separated URL path prefixes to skip, e.g. /assets,/css")
+	flag.StringVar(&exclude, "exclude", "", "comma separated URL path prefixes to skip, e.g. /assets,/css")
+	flag.BoolVar(&convertLinks, "convert-links", false, "rewrite mirrored links for offline viewing")
 	flag.Parse()
 
 	if bg {
@@ -55,6 +66,25 @@ func main() {
 	}
 
 	args := flag.Args()
+
+	if mirrorSite {
+		if len(args) < 1 {
+			fmt.Fprintln(os.Stderr, "wget: --mirror requires a URL")
+			os.Exit(1)
+		}
+		m := mirror.New(mirror.Options{
+			RootURL:      args[0],
+			Reject:       splitList(reject),
+			Exclude:      splitList(exclude),
+			ConvertLinks: convertLinks,
+		})
+		if err := m.Run(); err != nil {
+			fmt.Fprintln(os.Stderr, "wget: "+err.Error())
+			os.Exit(1)
+		}
+		return
+	}
+
 	if len(args) < 1 {
 		fmt.Fprintln(os.Stderr, "wget: missing URL")
 		fmt.Fprintln(os.Stderr, "usage: wget [-O name] [-P path] [--rate-limit rate] <url>")
@@ -131,6 +161,20 @@ func isTerminal(f *os.File) bool {
 		return false
 	}
 	return info.Mode()&os.ModeCharDevice != 0
+}
+
+func splitList(s string) []string {
+	if s == "" {
+		return nil
+	}
+	parts := strings.Split(s, ",")
+	out := make([]string, 0, len(parts))
+	for _, p := range parts {
+		if p = strings.TrimSpace(p); p != "" {
+			out = append(out, p)
+		}
+	}
+	return out
 }
 
 func stripFlag(args []string, name string) []string {
