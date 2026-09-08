@@ -42,7 +42,7 @@ status lines instead.
 | `--mirror` | Download an entire site into a folder named after its domain |
 | `-R=ext1,ext2` / `--reject=ext1,ext2` | With `--mirror`, skip files whose extension matches |
 | `-X=/path1,/path2` / `--exclude=/path1,/path2` | With `--mirror`, skip anything under these URL paths |
-| `--convert-links` | With `--mirror`, rewrite mirrored pages' links to point at the local copies |
+| `--convert-links` | With `--mirror`, also rewrite absolute same-site links to point at local copies |
 
 ## Mirroring a site
 
@@ -50,16 +50,15 @@ status lines instead.
 $ ./wget --mirror --convert-links https://example.com
 ```
 
-Crawls same-host pages and assets reachable through `<a href>`,
-`<link href>` and `<img src>` (plus `url(...)` in CSS, including inline
-`<style>` blocks), saving everything under `./example.com/`. Fetches run
-through a small worker pool so a site with a few hundred pages doesn't
-take minutes to crawl one request at a time.
+Crawls same-host pages and assets linked from pages, scripts and embedded
+media (plus `url(...)` in CSS), saving everything under `./example.com/`.
+Fetches run through a small worker pool so a site with a few hundred pages
+doesn't take minutes to crawl one request at a time.
 
 `--reject` and `--exclude` are applied before a link is ever fetched, so
-excluded paths never even touch the filesystem. `--convert-links` only
-rewrites references that actually get mirrored - anything off-site or
-filtered out is left pointing at the original URL, same as real wget.
+excluded paths never even touch the filesystem. Root-relative links and
+extensionless pages are adjusted to work from disk. `--convert-links` also
+rewrites absolute same-site references. Off-site and filtered links stay as-is.
 
 ## Layout
 
