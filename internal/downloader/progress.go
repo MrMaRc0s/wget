@@ -7,19 +7,17 @@ import (
 	"time"
 )
 
-const barWidth = 50
+const barWidth = 20
 
-// progressBar renders a single-line, carriage-return-updated progress
-// indicator. It doubles as an io.Writer so it can sit on the receiving
-// end of an io.TeeReader wrapped around the response body.
 type progressBar struct {
 	total   int64
 	written int64
 	start   time.Time
 	out     io.Writer
 
-	lastRender time.Time
-	lastLen    int
+	lastRender  time.Time
+	lastWritten int64
+	rendered    bool
 }
 
 func newProgressBar(total int64, out io.Writer) *progressBar {
@@ -29,8 +27,6 @@ func newProgressBar(total int64, out io.Writer) *progressBar {
 func (p *progressBar) Write(b []byte) (int, error) {
 	p.written += int64(len(b))
 
-	// Re-rendering on every chunk would flood small/local downloads with
-	// redraws; cap it to roughly 12 frames per second.
 	now := time.Now()
 	if now.Sub(p.lastRender) > 80*time.Millisecond || p.written == p.total {
 		p.render()
@@ -73,17 +69,15 @@ func (p *progressBar) render() {
 	line := fmt.Sprintf(" %6.2f %s / %6.2f %s [%s] %6.2f%% %.2f %s/s %s",
 		writtenVal, writtenUnit, totalVal, totalUnit, bar, percent, speedVal, speedUnit, eta)
 
-	padded := line
-	if pad := p.lastLen - len(line); pad > 0 {
-		padded += strings.Repeat(" ", pad)
-	}
-	p.lastLen = len(line)
-
-	fmt.Fprint(p.out, "\r"+padded)
+	fmt.Fprint(p.out, "\r\033[2K"+line)
+	p.lastWritten = p.written
+	p.rendered = true
 }
 
 func (p *progressBar) finish() {
-	p.render()
+	if !p.rendered || p.lastWritten != p.written {
+		p.render()
+	}
 	fmt.Fprintln(p.out)
 }
 
