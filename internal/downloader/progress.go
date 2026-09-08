@@ -19,6 +19,7 @@ type progressBar struct {
 	out     io.Writer
 
 	lastRender time.Time
+	lastLen    int
 }
 
 func newProgressBar(total int64, out io.Writer) *progressBar {
@@ -69,8 +70,16 @@ func (p *progressBar) render() {
 		eta = formatDuration(remaining)
 	}
 
-	fmt.Fprintf(p.out, "\r %6.2f %s / %6.2f %s [%s] %6.2f%% %.2f %s/s %s",
+	line := fmt.Sprintf(" %6.2f %s / %6.2f %s [%s] %6.2f%% %.2f %s/s %s",
 		writtenVal, writtenUnit, totalVal, totalUnit, bar, percent, speedVal, speedUnit, eta)
+
+	padded := line
+	if pad := p.lastLen - len(line); pad > 0 {
+		padded += strings.Repeat(" ", pad)
+	}
+	p.lastLen = len(line)
+
+	fmt.Fprint(p.out, "\r"+padded)
 }
 
 func (p *progressBar) finish() {
