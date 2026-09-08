@@ -34,7 +34,7 @@ func (m *Mirror) rewriteCSSURLs(css string, base *url.URL, currentLocalPath stri
 		}
 		links = append(links, target)
 
-		if !m.opts.ConvertLinks {
+		if !m.shouldRewriteLink(value) {
 			return match
 		}
 		rel := relativeLink(currentLocalPath, m.localPath(target))

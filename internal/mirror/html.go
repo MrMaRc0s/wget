@@ -2,6 +2,7 @@ package mirror
 
 import (
 	"net/url"
+	"path/filepath"
 	"regexp"
 	"strings"
 )
@@ -102,7 +103,7 @@ func (m *Mirror) processHTMLTag(tag, name string, base *url.URL, currentLocalPat
 			return tag, nil
 		}
 
-		if !m.opts.ConvertLinks {
+		if !m.shouldRewriteLink(value) {
 			return tag, []*url.URL{target}
 		}
 
@@ -113,6 +114,19 @@ func (m *Mirror) processHTMLTag(tag, name string, base *url.URL, currentLocalPat
 	}
 
 	return tag, nil
+}
+
+func (m *Mirror) shouldRewriteLink(value string) bool {
+	if m.opts.ConvertLinks {
+		return true
+	}
+
+	ref, err := url.Parse(strings.TrimSpace(value))
+	if err != nil || ref.IsAbs() || ref.Host != "" {
+		return false
+	}
+	return strings.HasPrefix(ref.Path, "/") || strings.HasSuffix(ref.Path, "/") ||
+		ref.Path != "" && filepath.Ext(ref.Path) == ""
 }
 
 func linkAttribute(tag string) string {
